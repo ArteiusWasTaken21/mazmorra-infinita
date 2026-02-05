@@ -26,6 +26,13 @@ export class PixiStage implements AfterViewInit, OnDestroy {
   private engine = new GameEngine(createEmptyState(30, 25));
 
   async ngAfterViewInit() {
+    window.addEventListener('keydown', (e) => {
+      const key = e.key.toLowerCase();
+      if (key === 'r') this.engine.dispatch({ type: 'build_room_from_selected' });
+      if (key === 'p') this.engine.dispatch({ type: 'build_corridor_from_selected' });
+      this.draw();
+    });
+
     this.app = new PIXI.Application();
     await this.app.init({resizeTo: this.hostRef.nativeElement, antialias: true, backgroundAlpha: 0});
     this.hostRef.nativeElement.appendChild(this.app.canvas);
@@ -50,7 +57,7 @@ export class PixiStage implements AfterViewInit, OnDestroy {
       const kind = s.tiles[i].kind;
 
       if (kind === 'door') {
-        this.engine.dispatch({ type: 'build_from_door', door: { x: tx, y: ty } });
+        this.engine.dispatch({ type: 'select_door', door: { x: tx, y: ty } });
       } else {
         this.engine.dispatch({ type: 'move', to: { x: tx, y: ty } });
       }
@@ -64,56 +71,70 @@ export class PixiStage implements AfterViewInit, OnDestroy {
 
   private draw() {
     const s = this.engine.getState();
-    this.tileLayer.clear();
-    this.playerLayer.clear();
-    this.gridLayer.clear();
 
-    // tiles + fog
+    this.tileLayer.clear();
+    this.gridLayer.clear();
+    this.playerLayer.clear();
+
+    // 1) DIBUJAR TILES
     for (let y = 0; y < s.height; y++) {
       for (let x = 0; x < s.width; x++) {
         const t = s.tiles[idx(x, y, s.width)];
         const px = x * this.tileSize;
         const py = y * this.tileSize;
 
-        // base tile (solo si descubierto, si no: negro)
-        if (!t.discovered) {
-          this.tileLayer.rect(px, py, this.tileSize, this.tileSize);
-          this.tileLayer.fill({color: 0x000000, alpha: 1});
-          continue;
-        }
-
+        // Colores por tipo
         const color =
-          t.kind === 'wall' ? 0x222222 :
-            t.kind === 'floor' ? 0x444444 :
-              t.kind === 'corridor' ? 0x3a3a3a :
-                t.kind === 'door' ? 0x8b5a2b :
-                  0x111111;
+          t.kind === 'wall' ? 0x1f1f1f :
+            t.kind === 'floor' ? 0x3f3f3f :
+              t.kind === 'corridor' ? 0x363636 :
+                t.kind === 'door'
+                  ? (t.doorUsed ? 0x6b4a1e : 0xc0841a) // puerta usada vs nueva
+                  : 0x111111;
 
         this.tileLayer.rect(px, py, this.tileSize, this.tileSize);
-        this.tileLayer.fill({color, alpha: 1});
+        this.tileLayer.fill({ color, alpha: 1 });
       }
     }
 
-    // grilla ligera arriba
-    this.gridLayer.stroke({width: 1, color: 0x2a2a2a, alpha: 0.6});
+    // 2) GRILLA
+    this.gridLayer.stroke({ width: 1, color: 0x2a2a2a, alpha: 0.65 });
+
     const w = s.width * this.tileSize;
     const h = s.height * this.tileSize;
+
     for (let x = 0; x <= s.width; x++) {
       const px = x * this.tileSize;
       this.gridLayer.moveTo(px, 0);
       this.gridLayer.lineTo(px, h);
     }
+
     for (let y = 0; y <= s.height; y++) {
       const py = y * this.tileSize;
       this.gridLayer.moveTo(0, py);
       this.gridLayer.lineTo(w, py);
     }
 
-    // player
+    // 3) HIGHLIGHT: PUERTA SELECCIONADA
+    if (s.selectedDoor) {
+      const px = s.selectedDoor.x * this.tileSize;
+      const py = s.selectedDoor.y * this.tileSize;
+
+      // borde grueso encima de la grilla
+      this.gridLayer.stroke({ width: 3, color: 0xFFD54A, alpha: 1 });
+      this.gridLayer.rect(px + 1, py + 1, this.tileSize - 2, this.tileSize - 2);
+    }
+
+    // 4) JUGADOR
     const pad = 5;
     const pp = s.player.pos;
-    this.playerLayer.rect(pp.x * this.tileSize + pad, pp.y * this.tileSize + pad, this.tileSize - pad * 2, this.tileSize - pad * 2);
-    this.playerLayer.fill({color: 0x4ade80, alpha: 1});
+    this.playerLayer.rect(
+      pp.x * this.tileSize + pad,
+      pp.y * this.tileSize + pad,
+      this.tileSize - pad * 2,
+      this.tileSize - pad * 2
+    );
+    this.playerLayer.fill({ color: 0x4ade80, alpha: 1 });
   }
 
   ngOnDestroy() {

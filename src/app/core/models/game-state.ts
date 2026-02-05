@@ -18,9 +18,10 @@ export interface GameState {
   turn: number;
   width: number;
   height: number;
-  tiles: Tile[];     // 1D para performance
+  tiles: Tile[];
   player: PlayerState;
   log: GameLogEntry[];
+  selectedDoor?: Point | null; // puerta seleccionada
 }
 
 export function idx(x: number, y: number, w: number) {
