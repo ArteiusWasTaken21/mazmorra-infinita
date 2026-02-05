@@ -1,12 +1,11 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import {Component} from '@angular/core';
+import {PixiStage} from './game/pixi-stage/pixi-stage';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [PixiStage],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
 export class App {
-  protected readonly title = signal('mazmorra-infinita');
 }
